@@ -7,7 +7,7 @@ import random
 
 pygame.init()
 
-MUSIC = 0
+MUSIC = 1
 WIDTH, HEIGHT = 1100, 700
 PADDLE_LENGHT, PADDLE_HEIGHT = 120, 8
 BALL_RADIUS = 12
