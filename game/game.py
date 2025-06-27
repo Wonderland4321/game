@@ -7,23 +7,25 @@ import random
 
 pygame.init()
 
-MUSIC = 1   #change to 0 to remove music
+MUSIC = 0   #change to 0 to remove music
 WIDTH, HEIGHT = 1100, 700
 PADDLE_LENGHT, PADDLE_HEIGHT = 120, 8
 BALL_RADIUS = 12
 DEFLECTION_ANGLE = 30
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Hari Krishnan's PONG")
+pygame.display.set_caption("PONG")
 clock = pygame.time.Clock()
-FONT1 = pygame.font.SysFont("comicsans", 50)
-FONT2 = pygame.font.SysFont("comicsans", 28)
+FONT1 = pygame.font.SysFont("ariel", 50)
+FONT2 = pygame.font.SysFont("times new roman", 28)
 BACKGROUND = pygame.transform.scale(pygame.image.load(os.path.join("Assets","background.jpg")), (WIDTH, HEIGHT))
 BALL_IMG = pygame.transform.scale(pygame.image.load(os.path.join("Assets","metal_ball.png")), (2 * BALL_RADIUS, 2 * BALL_RADIUS))
 pygame.time.set_timer(USEREVENT, 1000)
 collide = pygame.mixer.Sound(os.path.join("Assets","collision.wav"))
 music0 = pygame.mixer.Sound(os.path.join("Assets","music0.mp3"))
 music = pygame.mixer.Sound(os.path.join("Assets","music.mp3"))
+channel1 = pygame.mixer.Channel(0)
+channel2 = pygame.mixer.Channel(1)
 collide.set_volume(0.4)
 TEXT1 = FONT1.render("PRESS SPACEBAR", True, "white")
 TEXT2 = FONT1.render("YOU LOST!", True, "red")
@@ -46,8 +48,7 @@ class Paddle:
         pygame.draw.rect(WIN, "red", Rect(self.x + self.height, self.y, self.width * 0.1, self.height))
         pygame.draw.rect(WIN, "red", Rect(self.x + self.width * 0.9, self.y, self.width * 0.1, self.height))
 
-    def paddle_move(self):
-        keys = pygame.key.get_pressed()
+    def paddle_move(self, keys):
         if self.x > 0 and keys[K_LEFT]:
             self.x -= self.vel
 
@@ -104,13 +105,11 @@ def draw(image):
     WIN.blit(image, (0, 0))
 
 
-def begin(paddle, circle):
-    paddle.paddle_move()
+def begin(paddle, circle, keys):
+    paddle.paddle_move(keys)
     circle.x = paddle.x + paddle.width / 2
-    keys = pygame.key.get_pressed()
     display_text(TEXT1, ((WIDTH - TEXT1.get_width()) / 2, (HEIGHT - TEXT1.get_height()) / 2))
     if keys[K_SPACE]:
-        music0.stop()
         return 1
     else:
         return 0
@@ -120,17 +119,20 @@ def display_text(text, pos):
     WIN.blit(text, pos)
     pygame.display.update(Rect(pos[0], pos[1], text.get_width(), text.get_height()))
 
+
 def score(time, high_score):
     display_text(TEXT3, (10, 10))
     display_text(FONT2.render(str(time), 1, "green"), (10 + TEXT3.get_width(), 10))
     display_text(TEXT4, (WIDTH - TEXT4.get_width() - high_score.get_width() - 10, 10))
     display_text(high_score, (WIDTH - high_score.get_width() - 10, 10))
-    
+
+
 def main():
     circle = Circle(WIDTH / 2, HEIGHT * 0.92 - BALL_RADIUS, BALL_RADIUS, 8)
     paddle = Paddle((WIDTH - PADDLE_LENGHT) / 2, HEIGHT * 0.92, PADDLE_LENGHT, PADDLE_HEIGHT, 10, (180, 180, 180))
     run = True
     run_once = 0
+    pause = 0
     time = 0
     sound1, sound2 = MUSIC, MUSIC
     if os.path.isfile(os.path.join("high_score.txt")):
@@ -146,9 +148,10 @@ def main():
         for event in pygame.event.get():
             if event.type == QUIT:
                 run = False
-            elif event.type == USEREVENT and run_once == 1:
+            elif event.type == USEREVENT and run_once == 1 and not pause:
                 time += 1
 
+        keys = pygame.key.get_pressed()
         vel_increment = time / 30
         circle.vel += int(vel_increment)
         draw(BACKGROUND)
@@ -156,17 +159,23 @@ def main():
         circle.draw_circle()
 
         if not run_once:
-            run_once = begin(paddle, circle)
-            if sound2:
-                music0.play(-1)
-                sound2=0
-        else:
-            paddle.paddle_move()
+            run_once = begin(paddle, circle, keys)
+            if sound2 and not channel1.get_busy():
+                channel1.play(music0, -1)
+        elif not pause:
+            paddle.paddle_move(keys)
             circle.circle_move()
             circle.circle_paddle_collision(paddle)
-            if sound1:
-                music.play(-1)
-                sound1 = 0
+            channel1.pause()
+            channel2.unpause()
+            if sound1 and not channel2.get_busy():
+                channel2.play(music, -1)
+            pause = keys[K_ESCAPE]
+        else:
+            channel2.pause()
+            display_text(TEXT1, ((WIDTH - TEXT1.get_width()) / 2, (HEIGHT - TEXT1.get_height()) / 2))
+            pause = not keys[K_SPACE]
+            
 
         if circle.y > HEIGHT - circle.r:
             display_text(TEXT2, ((WIDTH - TEXT2.get_width()) / 2, (HEIGHT - TEXT2.get_height()) / 2))
